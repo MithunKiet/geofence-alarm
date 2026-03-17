@@ -42,7 +42,7 @@ app.*.map.json
 /android/app/release
 
 # Android local.properties contains SDK path — do not commit in production
-# android/local.properties
+android/local.properties
 
 # iOS
 /ios/Flutter/App.framework

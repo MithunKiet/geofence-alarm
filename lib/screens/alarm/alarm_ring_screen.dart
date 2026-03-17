@@ -85,7 +85,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   String get _countdownText {
     if (_remainingSeconds > 60) return '';
-    return 'Auto-stop in $_remainingSeconds s';
+    return 'Auto-stop in $_remainingSeconds sec';
   }
 
   @override
