@@ -50,7 +50,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Google Maps API Key -->
+        <!--
+            Google Maps API Key.
+            IMPORTANT: Replace YOUR_API_KEY_HERE with your real key before building.
+            Never commit a real API key to source control.
+            See README.md → Setup Instructions → Step 2 for details.
+        -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="YOUR_API_KEY_HERE" />
