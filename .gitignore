@@ -1,5 +1,4 @@
-# Flutter .gitignore
-# Miscellaneous
+# Misc
 *.class
 *.log
 *.pyc
@@ -9,39 +8,32 @@
 .buildlog/
 .history
 .svn/
-migrate_working_dir/
 
-# IntelliJ related
+# IDE
+.idea/
+.vscode/
+.vs/
 *.iml
 *.ipr
 *.iws
-.idea/
+*.user
+*.suo
 
-# VS Code
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter/Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+.metadata
+
+# Build
 /build/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# Android local.properties contains SDK path — do not commit in production
+# Android
 android/local.properties
 
 # iOS
@@ -50,8 +42,6 @@ android/local.properties
 /ios/Flutter/Flutter.podspec
 /ios/Flutter/Generated.xcconfig
 /ios/Flutter/ephemeral/
-/ios/Flutter/app.flx
-/ios/Flutter/app.zip
 /ios/Flutter/flutter_assets/
 /ios/Flutter/flutter_export_environment.sh
 /ios/ServiceDefinitions.json
@@ -60,5 +50,5 @@ android/local.properties
 # Coverage
 coverage/
 
-# Generated files
+# Generated
 lib/generated_plugin_registrant.dart

@@ -20,7 +20,7 @@ class NotificationService {
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationResponse,
     );
 
@@ -47,15 +47,15 @@ class NotificationService {
     const notificationDetails = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
-      alarm.id ?? AppConstants.alarmNotificationId,
-      '🔔 ${AppConstants.appName}',
-      'You have entered the zone: ${alarm.title}',
-      notificationDetails,
+      id: alarm.id ?? AppConstants.alarmNotificationId,
+      title: '🔔 ${AppConstants.appName}',
+      body: 'You have entered the zone: ${alarm.title}',
+      notificationDetails: notificationDetails,
     );
   }
 
   Future<void> cancelNotification(int id) async {
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   Future<void> cancelAllNotifications() async {

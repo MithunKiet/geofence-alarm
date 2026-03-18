@@ -22,12 +22,12 @@ class AppGeofenceService {
 
   bool get isRunning => _isRunning;
 
-  void _onGeofenceStatusChanged(
+  Future<void> _onGeofenceStatusChanged(
     gf.Geofence geofence,
     gf.GeofenceRadius geofenceRadius,
     gf.GeofenceStatus geofenceStatus,
     gf.Location location,
-  ) {
+  ) async {
     if (geofenceStatus == gf.GeofenceStatus.ENTER) {
       final alarmId = int.tryParse(geofence.id);
       if (alarmId != null) {

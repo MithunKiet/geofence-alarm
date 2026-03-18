@@ -68,7 +68,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
               'Snoozed for ${AppConstants.snoozeDurationMinutes} minutes'),
         ),
@@ -194,9 +194,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                       height: 56,
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.snooze, size: 24),
-                        label: Text(
+                        label: const Text(
                           'SNOOZE (${AppConstants.snoozeDurationMinutes} min)',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(

@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import '../config/constants.dart';
 import '../models/alarm_model.dart';
 import '../database/database_helper.dart';
@@ -12,7 +12,6 @@ class AlarmService {
   AlarmService._();
   static final AlarmService instance = AlarmService._();
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
   Timer? _autoStopTimer;
   Timer? _snoozeTimer;
   bool _isAlarmPlaying = false;
@@ -49,12 +48,14 @@ class AlarmService {
     _currentAlarm = alarm;
 
     try {
-      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource(AppConstants.alarmSoundAsset));
+      // Play the system's default alarm sound
+      await FlutterRingtonePlayer().playAlarm(
+        looping: true,
+        asAlarm: true,
+        volume: 1.0,
+      );
     } catch (e) {
-      // Audio file may not exist in development; log and continue so the
-      // notification and screen navigation still work.
-      debugPrint('[AlarmService] Audio playback error (asset missing?): $e');
+      debugPrint('[AlarmService] Ringtone playback error: $e');
     }
 
     await NotificationService.instance.showAlarmNotification(alarm);
@@ -72,9 +73,9 @@ class AlarmService {
     _autoStopTimer = null;
 
     try {
-      await _audioPlayer.stop();
+      await FlutterRingtonePlayer().stop();
     } catch (e) {
-      debugPrint('[AlarmService] Error stopping audio: $e');
+      debugPrint('[AlarmService] Error stopping ringtone: $e');
     }
 
     if (_currentAlarm != null) {
@@ -99,6 +100,5 @@ class AlarmService {
     _snoozeTimer?.cancel();
     _snoozeTimer = null;
     await stopAlarm();
-    await _audioPlayer.dispose();
   }
 }
