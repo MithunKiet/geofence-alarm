@@ -22,18 +22,18 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       fontFamily: 'Roboto',
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         elevation: 2,
         centerTitle: true,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: _primaryColor,
@@ -64,7 +64,7 @@ class AppTheme {
           ),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
