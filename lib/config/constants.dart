@@ -5,8 +5,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // Radius options in meters
-  static const List<double> radiusOptions = [100.0, 200.0, 500.0, 1000.0];
-  static const double defaultRadius = 200.0;
+  static const List<double> radiusOptions = [10.0, 20.0,30.0, 50.0, 100.0, 200.0, 500.0, 1000.0,2000.0,3000.0,4000.0, 5000.0];
+  static const double defaultRadius = 100.0;
 
   // Alarm behavior
   static const int snoozeDurationMinutes = 5;
