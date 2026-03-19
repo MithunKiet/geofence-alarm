@@ -25,6 +25,8 @@ class MapPickerScreen extends StatefulWidget {
 class _MapPickerScreenState extends State<MapPickerScreen> {
   GoogleMapController? _mapController;
   LatLng? _selectedLocation;
+  LatLng? _pendingCameraTarget;
+  MapType _mapType = MapType.normal;
   double _radius = AppConstants.defaultRadius;
   bool _isLoadingLocation = false;
   final Set<Marker> _markers = {};
@@ -36,9 +38,30 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
       _selectedLocation =
           LatLng(widget.initialLatitude!, widget.initialLongitude!);
+    } else {
+      _setDefaultLocationToCurrentPosition();
     }
     _radius = widget.initialRadius ?? AppConstants.defaultRadius;
     _updateOverlays();
+  }
+
+  Future<void> _setDefaultLocationToCurrentPosition() async {
+    final position = await LocationService.instance.getCurrentLocation();
+    if (!mounted || position == null || _selectedLocation != null) return;
+
+    final target = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _selectedLocation = target;
+      _updateOverlays();
+    });
+
+    if (_mapController != null) {
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(target, AppConstants.defaultMapZoom),
+      );
+    } else {
+      _pendingCameraTarget = target;
+    }
   }
 
   void _updateOverlays() {
@@ -118,6 +141,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     });
   }
 
+  void _onMapTypeSelected(MapType type) {
+    if (_mapType == type) return;
+    setState(() => _mapType = type);
+  }
+
   @override
   Widget build(BuildContext context) {
     final initialPosition = _selectedLocation ??
@@ -127,6 +155,43 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       appBar: AppBar(
         title: const Text('Pick Location'),
         actions: [
+          PopupMenuButton<MapType>(
+            tooltip: 'Map type',
+            icon: const Icon(Icons.layers_outlined),
+            onSelected: _onMapTypeSelected,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: MapType.normal,
+                child: Row(
+                  children: [
+                    if (_mapType == MapType.normal)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Icon(Icons.check, size: 18),
+                      )
+                    else
+                      const SizedBox(width: 26),
+                    const Text('Default'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: MapType.satellite,
+                child: Row(
+                  children: [
+                    if (_mapType == MapType.satellite)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Icon(Icons.check, size: 18),
+                      )
+                    else
+                      const SizedBox(width: 26),
+                    const Text('Satellite'),
+                  ],
+                ),
+              ),
+            ],
+          ),
           IconButton(
             icon: _isLoadingLocation
                 ? const SizedBox(
@@ -151,10 +216,22 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 target: initialPosition,
                 zoom: AppConstants.defaultMapZoom,
               ),
-              onMapCreated: (controller) => _mapController = controller,
+              onMapCreated: (controller) async {
+                _mapController = controller;
+                if (_pendingCameraTarget != null) {
+                  await controller.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      _pendingCameraTarget!,
+                      AppConstants.defaultMapZoom,
+                    ),
+                  );
+                  _pendingCameraTarget = null;
+                }
+              },
               onTap: _onMapTapped,
               markers: _markers,
               circles: _circles,
+              mapType: _mapType,
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
               mapToolbarEnabled: false,

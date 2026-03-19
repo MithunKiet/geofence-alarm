@@ -182,6 +182,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
                       zoom: AppConstants.defaultMapZoom,
                     ),
                     onMapCreated: (c) => _previewMapController = c,
+                    mapType: MapType.satellite,
                     markers: {
                       Marker(
                         markerId: const MarkerId('preview'),
