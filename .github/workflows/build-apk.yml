@@ -23,8 +23,12 @@ jobs:
       # map screen in the test APK. Without it, the build still succeeds but
       # the map is blank (see README.md → Setup Instructions).
       - name: Configure Maps API key
-        if: ${{ secrets.MAPS_API_KEY != '' }}
-        run: echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" >> android/local.properties
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          if [ -n "$MAPS_API_KEY" ]; then
+            echo "MAPS_API_KEY=$MAPS_API_KEY" >> android/local.properties
+          fi
 
       - run: flutter pub get
 
