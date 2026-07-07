@@ -14,7 +14,6 @@ dependencies:
   geolocator: ^14.0.2
   geofence_service: ^6.0.0
   flutter_local_notifications: ^21.0.0
-  audioplayers: ^6.6.0
   sqflite: ^2.3.0
   path: ^1.9.0
   provider: ^6.1.1

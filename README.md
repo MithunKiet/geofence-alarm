@@ -6,7 +6,7 @@ A production-ready Flutter Android application that triggers an alarm when the u
 
 - 📍 **Map Location Picker** — tap the map to set alarm location with visual radius circle
 - 🔔 **Alarm Monitoring** — continuous geofence monitoring using `geofence_service`
-- 🔊 **Alarm Sound** — plays alarm.mp3 using `audioplayers`
+- 🔊 **Alarm Sound** — plays the system alarm ringtone via `flutter_ringtone_player`
 - 📳 **Notifications** — system notifications via `flutter_local_notifications`
 - 💾 **Local Storage** — alarms stored in SQLite via `sqflite`
 - ⏰ **Snooze & Auto-stop** — snooze for 5 min, auto-stop after 60 s
@@ -77,34 +77,22 @@ cd geofence-alarm
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable **Maps SDK for Android**
-3. Create an API key
-4. Replace `YOUR_API_KEY_HERE` in `android/app/src/main/AndroidManifest.xml`:
+3. Create an API key and restrict it to this app's package name (`com.example.geofence_alarm`) and your debug/release SHA-1 fingerprint
+4. Add it to `android/local.properties` (this file is git-ignored, so the key is never committed):
 
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_ACTUAL_API_KEY" />
+```properties
+MAPS_API_KEY=YOUR_ACTUAL_API_KEY
 ```
 
-### 3. Add Alarm Sound
+The key is injected into `AndroidManifest.xml` at build time via a Gradle manifest placeholder. Without it, the app still builds and runs, but the map screen shows a blank map.
 
-Place an `alarm.mp3` file in the `assets/sounds/` directory:
-
-```
-assets/
-└── sounds/
-    └── alarm.mp3   ← add your alarm sound here
-```
-
-You can use any royalty-free alarm sound. The app will still work without it (just no audio).
-
-### 4. Install dependencies
+### 3. Install dependencies
 
 ```bash
 flutter pub get
 ```
 
-### 5. Run the app
+### 4. Run the app
 
 ```bash
 flutter run
@@ -146,49 +134,25 @@ CREATE TABLE alarms (
 | Package | Version | Purpose |
 |---|---|---|
 | `google_maps_flutter` | ^2.5.0 | Google Maps widget |
-| `geolocator` | ^10.1.0 | GPS location access |
-| `geofence_service` | ^5.0.0 | Geofence monitoring |
-| `flutter_local_notifications` | ^16.1.0 | System notifications |
-| `audioplayers` | ^5.2.1 | Play alarm sound |
+| `geolocator` | ^14.0.2 | GPS location access |
+| `geofence_service` | ^6.0.0 | Geofence monitoring |
+| `flutter_local_notifications` | ^21.0.0 | System notifications |
+| `flutter_ringtone_player` | ^4.0.0+4 | Play the alarm sound |
 | `sqflite` | ^2.3.0 | Local SQLite database |
 | `path` | ^1.9.0 | File path utilities |
 | `provider` | ^6.1.1 | State management |
-| `permission_handler` | ^11.1.0 | Runtime permissions |
+| `permission_handler` | ^12.0.1 | Runtime permissions |
+
+> **Note:** `geofence_service` is marked discontinued upstream. It still works, but
+> has no guaranteed fixes for future Android versions — consider migrating to an
+> actively maintained alternative (e.g. `geofencing_api`) if this becomes an issue.
 
 ## Security Notes
 
-- The Google Maps API key in `AndroidManifest.xml` is a placeholder — replace before deploying
-- Restrict your API key in Google Cloud Console to only the Maps SDK for Android
-- The `android/local.properties` file is excluded from source control (contains local SDK paths)
-
-## Setup
-
-### Google Maps API Key
-
-This app uses Google Maps. You **must** replace the placeholder API key in
-`android/app/src/main/AndroidManifest.xml` before building:
-
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_API_KEY_HERE" />
-```
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project and enable the **Maps SDK for Android**
-3. Create an API key and restrict it to your app's package name (`com.example.geofence_alarm`)
-4. Replace `YOUR_API_KEY_HERE` with your key
-
-### Alarm Sound
-
-Add a real `alarm.mp3` file to `assets/sounds/alarm.mp3`. The app will log a
-warning and still show the alarm screen/notification if the file is absent.
-
-## Features
-
-- Tap on a map to place a geofence alarm
-- Choose a radius (100 m, 200 m, 500 m or 1 km)
-- Background geofence monitoring
-- Full-screen alarm screen with Stop and Snooze (5 min) actions
-- Auto-stop after 60 seconds
-- SQLite persistence via sqflite
+- The Google Maps API key is **not** stored in `AndroidManifest.xml` — it's injected
+  at build time from `android/local.properties` (git-ignored) via a Gradle manifest
+  placeholder. See Setup Instructions → Step 2.
+- Restrict your API key in Google Cloud Console to only the Maps SDK for Android,
+  scoped to this app's package name and signing certificate fingerprint.
+- The `android/local.properties` file is excluded from source control (contains
+  local SDK paths and the Maps API key).
