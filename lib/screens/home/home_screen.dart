@@ -35,6 +35,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await PermissionUtils.requestBackgroundLocationPermission(context);
     if (!mounted) return;
     await PermissionUtils.requestNotificationPermission(context);
+    if (!mounted) return;
+    await PermissionUtils.requestIgnoreBatteryOptimizations(context);
   }
 
   Future<void> _refreshGeofences() async {
