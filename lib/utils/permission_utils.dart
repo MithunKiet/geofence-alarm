@@ -50,6 +50,26 @@ class PermissionUtils {
     return status.isGranted;
   }
 
+  /// Asks the OS to stop battery-optimizing this app. Without this, many
+  /// Android OEMs (Xiaomi, Samsung, OnePlus, Oppo, ...) kill the geofence
+  /// monitoring service soon after the app is backgrounded or closed, so the
+  /// alarm never fires.
+  static Future<bool> requestIgnoreBatteryOptimizations(
+      BuildContext context) async {
+    final status = await Permission.ignoreBatteryOptimizations.request();
+    if (!status.isGranted && context.mounted) {
+      await showPermissionDeniedDialog(
+        context,
+        title: 'Disable Battery Optimization',
+        message:
+            'To keep monitoring geofences after GeoAlarm is closed, please disable '
+            'battery optimization for this app in Settings.',
+      );
+      return false;
+    }
+    return status.isGranted;
+  }
+
   static Future<void> showPermissionDeniedDialog(
     BuildContext context, {
     required String title,
