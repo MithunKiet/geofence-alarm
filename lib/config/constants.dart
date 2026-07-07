@@ -35,9 +35,6 @@ class AppConstants {
   static const String geofenceChannelDescription =
       'Foreground service for geofence monitoring';
 
-  // Audio
-  static const String alarmSoundAsset = 'sounds/alarm.mp3';
-
   // Map defaults
   static const double defaultMapZoom = 15.0;
   static const double defaultLatitude = 37.7749;

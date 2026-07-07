@@ -1,0 +1,40 @@
+name: Build Debug APK
+
+on:
+  push:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # Optional: add a MAPS_API_KEY repository secret to get a fully working
+      # map screen in the test APK. Without it, the build still succeeds but
+      # the map is blank (see README.md → Setup Instructions).
+      - name: Configure Maps API key
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          if [ -n "$MAPS_API_KEY" ]; then
+            echo "MAPS_API_KEY=$MAPS_API_KEY" >> android/local.properties
+          fi
+
+      - run: flutter pub get
+
+      - run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geoalarm-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk

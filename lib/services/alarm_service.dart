@@ -42,7 +42,12 @@ class AlarmService {
   }
 
   Future<void> startAlarm(AlarmModel alarm) async {
-    if (_isAlarmPlaying) return;
+    if (_isAlarmPlaying) {
+      if (_currentAlarm?.id == alarm.id) return;
+      // A different geofence fired while an alarm was already ringing -
+      // switch over instead of silently dropping the new trigger.
+      await stopAlarm();
+    }
 
     _isAlarmPlaying = true;
     _currentAlarm = alarm;

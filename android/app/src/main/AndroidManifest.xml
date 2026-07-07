@@ -20,6 +20,9 @@
     <!-- Boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Keep monitoring alive when the OS restricts background battery usage -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- Internet for Google Maps -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -52,18 +55,24 @@
 
         <!--
             Google Maps API Key.
-            IMPORTANT: Replace YOUR_API_KEY_HERE with your real key before building.
-            Never commit a real API key to source control.
-            See README.md → Setup Instructions → Step 2 for details.
+            Set MAPS_API_KEY in android/local.properties (not committed) to your
+            real key. See README.md → Setup Instructions → Step 2 for details.
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="REDACTED_ROTATED_KEY" />
+            android:value="${mapsApiKey}" />
 
-        <!-- Geofence foreground service -->
+        <!--
+            Geofence foreground service.
+            stopWithTask="false" is required so monitoring (and therefore the
+            alarm) keeps running after the user swipes the app away from the
+            recent-apps list - otherwise Android kills this service the moment
+            the task is removed and geofences stop being checked entirely.
+        -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundTaskService"
             android:foregroundServiceType="location"
+            android:stopWithTask="false"
             android:exported="false" />
 
         <!-- Flutter local notifications -->
