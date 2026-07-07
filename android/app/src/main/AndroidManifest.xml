@@ -52,13 +52,12 @@
 
         <!--
             Google Maps API Key.
-            IMPORTANT: Replace YOUR_API_KEY_HERE with your real key before building.
-            Never commit a real API key to source control.
-            See README.md → Setup Instructions → Step 2 for details.
+            Set MAPS_API_KEY in android/local.properties (not committed) to your
+            real key. See README.md → Setup Instructions → Step 2 for details.
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="REDACTED_ROTATED_KEY" />
+            android:value="${mapsApiKey}" />
 
         <!-- Geofence foreground service -->
         <service
