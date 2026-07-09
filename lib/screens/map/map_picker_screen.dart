@@ -29,6 +29,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   MapType _mapType = MapType.normal;
   double _radius = AppConstants.defaultRadius;
   bool _isLoadingLocation = false;
+  bool _isMapReady = false;
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
 
@@ -42,6 +43,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       _setDefaultLocationToCurrentPosition();
     }
     _radius = widget.initialRadius ?? AppConstants.defaultRadius;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // _updateOverlays() reads Theme.of(context), which isn't safe to call
+    // from initState() before the first build - do the initial overlay
+    // computation here instead.
     _updateOverlays();
   }
 
@@ -69,6 +78,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     _circles.clear();
 
     if (_selectedLocation != null) {
+      final primary = Theme.of(context).colorScheme.primary;
       _markers.add(
         Marker(
           markerId: const MarkerId('selected_location'),
@@ -85,8 +95,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           circleId: const CircleId('geofence_radius'),
           center: _selectedLocation!,
           radius: _radius,
-          fillColor: Colors.indigo.withAlpha(51),
-          strokeColor: Colors.indigo,
+          fillColor: primary.withAlpha(51),
+          strokeColor: primary,
           strokeWidth: 2,
         ),
       );
@@ -151,6 +161,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Widget build(BuildContext context) {
     final initialPosition = _selectedLocation ??
         const LatLng(AppConstants.defaultLatitude, AppConstants.defaultLongitude);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -193,59 +204,71 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               ),
             ],
           ),
-          IconButton(
-            icon: _isLoadingLocation
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.my_location),
-            tooltip: 'Go to my location',
-            onPressed: _isLoadingLocation ? null : _goToCurrentLocation,
-          ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: initialPosition,
-                zoom: AppConstants.defaultMapZoom,
-              ),
-              onMapCreated: (controller) async {
-                _mapController = controller;
-                if (_pendingCameraTarget != null) {
-                  await controller.animateCamera(
-                    CameraUpdate.newLatLngZoom(
-                      _pendingCameraTarget!,
-                      AppConstants.defaultMapZoom,
-                    ),
-                  );
-                  _pendingCameraTarget = null;
-                }
-              },
-              onTap: _onMapTapped,
-              markers: _markers,
-              circles: _circles,
-              mapType: _mapType,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              mapToolbarEnabled: false,
-              zoomControlsEnabled: true,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: initialPosition,
+                    zoom: AppConstants.defaultMapZoom,
+                  ),
+                  onMapCreated: (controller) async {
+                    _mapController = controller;
+                    if (_pendingCameraTarget != null) {
+                      await controller.animateCamera(
+                        CameraUpdate.newLatLngZoom(
+                          _pendingCameraTarget!,
+                          AppConstants.defaultMapZoom,
+                        ),
+                      );
+                      _pendingCameraTarget = null;
+                    }
+                    if (mounted) setState(() => _isMapReady = true);
+                  },
+                  onTap: _onMapTapped,
+                  markers: _markers,
+                  circles: _circles,
+                  mapType: _mapType,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  mapToolbarEnabled: false,
+                  zoomControlsEnabled: true,
+                ),
+                if (!_isMapReady)
+                  Container(
+                    color: colorScheme.surface,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: FloatingActionButton.small(
+                    heroTag: 'currentLocationFab',
+                    onPressed: _isLoadingLocation ? null : _goToCurrentLocation,
+                    tooltip: 'Go to my location',
+                    child: _isLoadingLocation
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                  ),
+                ),
+              ],
             ),
           ),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withAlpha(20),
+                  color: colorScheme.shadow.withAlpha(30),
                   blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
@@ -260,15 +283,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on,
-                            size: 16, color: Colors.indigo),
+                        Icon(Icons.location_on,
+                            size: 16, color: colorScheme.primary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             '${_selectedLocation!.latitude.toStringAsFixed(6)}, '
                             '${_selectedLocation!.longitude.toStringAsFixed(6)}',
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.black54),
+                            style: TextStyle(
+                                fontSize: 13, color: colorScheme.onSurfaceVariant),
                           ),
                         ),
                       ],
@@ -280,11 +303,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.touch_app,
-                            size: 16, color: Colors.grey.shade500),
+                            size: 16, color: colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           'Tap on the map to select a location',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -313,3 +336,4 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     super.dispose();
   }
 }
+
