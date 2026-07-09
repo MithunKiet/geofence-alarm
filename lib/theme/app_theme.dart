@@ -6,34 +6,43 @@ class AppTheme {
   static const Color _primaryColor = Color(0xFF5C6BC0); // Indigo 400
   static const Color _secondaryColor = Color(0xFF7986CB); // Indigo 300
   static const Color _errorColor = Color(0xFFD32F2F);
-  static const Color _surfaceColor = Color(0xFFF5F5F5);
+  static const Color _surfaceColorLight = Color(0xFFF5F5F5);
+  static const Color _surfaceColorDark = Color(0xFF121212);
 
-  static ThemeData get lightTheme {
+  static ThemeData get lightTheme => _themeFrom(Brightness.light);
+
+  static ThemeData get darkTheme => _themeFrom(Brightness.dark);
+
+  static ThemeData _themeFrom(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _primaryColor,
-      brightness: Brightness.light,
+      brightness: brightness,
       primary: _primaryColor,
       secondary: _secondaryColor,
       error: _errorColor,
-      surface: _surfaceColor,
+      surface: isDark ? _surfaceColorDark : _surfaceColorLight,
     );
 
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: colorScheme,
+      scaffoldBackgroundColor: colorScheme.surface,
       fontFamily: 'Roboto',
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         elevation: 2,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: _primaryColor,
@@ -44,6 +53,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: colorScheme.onSurface.withAlpha(31),
           minimumSize: const Size(double.infinity, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -64,8 +74,12 @@ class AppTheme {
           ),
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: _primaryColor),
+      ),
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: isDark ? 0 : 2,
+        color: colorScheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -73,13 +87,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -95,23 +110,37 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return _primaryColor;
-          return Colors.grey;
+          return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return _primaryColor.withAlpha(128);
           }
-          return Colors.grey.shade300;
+          return null;
         }),
       ),
       dividerTheme: DividerThemeData(
-        color: Colors.grey.shade200,
+        color: colorScheme.outlineVariant,
         thickness: 1,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        selectedColor: _primaryColor.withAlpha(51),
+        labelStyle: TextStyle(color: colorScheme.onSurface),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: colorScheme.outlineVariant),
         ),
       ),
     );

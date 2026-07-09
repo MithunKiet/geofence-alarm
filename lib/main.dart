@@ -77,6 +77,8 @@ class _GeoAlarmAppState extends State<GeoAlarmApp> with WidgetsBindingObserver {
       child: MaterialApp(
         title: AppConstants.appName,
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
         navigatorKey: _navigatorKey,
         initialRoute: AppRoutes.home,
         onGenerateRoute: AppRoutes.generateRoute,
