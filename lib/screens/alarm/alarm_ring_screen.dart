@@ -23,7 +23,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   @override
   void initState() {
     super.initState();
-    _remainingSeconds = AppConstants.autoStopSeconds;
 
     _pulseController = AnimationController(
       vsync: this,
@@ -39,7 +38,20 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (!AlarmService.instance.isAlarmPlaying) {
       AlarmService.instance.startAlarm(widget.alarm);
     }
+    _remainingSeconds = _computeRemainingSeconds();
     _startCountdown();
+  }
+
+  /// Derived from AlarmService's own start time rather than a fresh local
+  /// timer, so the displayed countdown can never drift out of sync with the
+  /// actual alarm state (e.g. when this screen is opened some time after the
+  /// alarm already started ringing in the background).
+  int _computeRemainingSeconds() {
+    final startedAt = AlarmService.instance.alarmStartedAt;
+    if (startedAt == null) return 0;
+    final elapsed = DateTime.now().difference(startedAt).inSeconds;
+    final remaining = AppConstants.autoStopSeconds - elapsed;
+    return remaining < 0 ? 0 : remaining;
   }
 
   void _startCountdown() {
@@ -48,7 +60,13 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         timer.cancel();
         return;
       }
-      setState(() => _remainingSeconds--);
+      if (!AlarmService.instance.isAlarmPlaying) {
+        // Stopped externally (e.g. AlarmService's own auto-stop timer fired).
+        timer.cancel();
+        Navigator.of(context).pop();
+        return;
+      }
+      setState(() => _remainingSeconds = _computeRemainingSeconds());
       if (_remainingSeconds <= 0) {
         timer.cancel();
         _stopAndPop();

@@ -75,7 +75,7 @@ class AlarmCard extends StatelessWidget {
                 ),
                 Switch(
                   value: alarm.isActive,
-                  onChanged: (val) => provider.toggleAlarm(alarm.id!, val),
+                  onChanged: (val) => _toggleAlarm(context, provider, val),
                 ),
               ],
             ),
@@ -105,6 +105,16 @@ class AlarmCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleAlarm(
+      BuildContext context, AlarmProvider provider, bool value) async {
+    final success = await provider.toggleAlarm(alarm.id!, value);
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.error ?? 'Failed to update alarm')),
+      );
+    }
   }
 
   Future<void> _confirmDelete(

@@ -16,10 +16,16 @@ class AlarmService {
   Timer? _snoozeTimer;
   bool _isAlarmPlaying = false;
   AlarmModel? _currentAlarm;
+  DateTime? _alarmStartedAt;
   AlarmTriggerCallback? _onAlarmTriggered;
 
   bool get isAlarmPlaying => _isAlarmPlaying;
   AlarmModel? get currentAlarm => _currentAlarm;
+
+  /// When the currently-playing alarm actually started ringing. UI (the ring
+  /// screen) derives its countdown from this instead of running its own
+  /// independent timer, so the two can never drift out of sync.
+  DateTime? get alarmStartedAt => _alarmStartedAt;
 
   void setAlarmTriggerCallback(AlarmTriggerCallback callback) {
     _onAlarmTriggered = callback;
@@ -51,6 +57,7 @@ class AlarmService {
 
     _isAlarmPlaying = true;
     _currentAlarm = alarm;
+    _alarmStartedAt = DateTime.now();
 
     try {
       // Play the system's default alarm sound
@@ -91,6 +98,7 @@ class AlarmService {
 
     _isAlarmPlaying = false;
     _currentAlarm = null;
+    _alarmStartedAt = null;
   }
 
   Future<void> snoozeAlarm(AlarmModel alarm) async {
