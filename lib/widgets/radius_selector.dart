@@ -14,41 +14,75 @@ class RadiusSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final options = AppConstants.radiusOptions;
+    final colorScheme = Theme.of(context).colorScheme;
+    final selectedIndex = options.indexOf(selectedRadius);
+    final sliderIndex = (selectedIndex == -1 ? 0 : selectedIndex).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Alarm Radius',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+        Row(
+          children: [
+            Text(
+              'Alarm Radius',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
               ),
+              child: Text(
+                DistanceUtils.formatRadius(selectedRadius),
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: AppConstants.radiusOptions.map((radius) {
-            final isSelected = selectedRadius == radius;
-            return ChoiceChip(
-              label: Text(DistanceUtils.formatRadius(radius)),
-              selected: isSelected,
-              onSelected: (_) => onChanged(radius),
-              selectedColor:
-                  Theme.of(context).colorScheme.primary.withAlpha(51),
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey.shade700,
-                fontWeight:
-                    isSelected ? FontWeight.bold : FontWeight.normal,
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+          ),
+          child: Slider(
+            value: sliderIndex,
+            min: 0,
+            max: (options.length - 1).toDouble(),
+            divisions: options.length - 1,
+            label: DistanceUtils.formatRadius(options[sliderIndex.round()]),
+            onChanged: (value) => onChanged(options[value.round()]),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                DistanceUtils.formatRadius(options.first),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
-              side: BorderSide(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey.shade300,
+              Text(
+                DistanceUtils.formatRadius(options.last),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
-            );
-          }).toList(),
+            ],
+          ),
         ),
       ],
     );
