@@ -1,6 +1,8 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../config/constants.dart';
+
 class LocationService {
   LocationService._();
   static final LocationService instance = LocationService._();
@@ -40,7 +42,10 @@ class LocationService {
 
     try {
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: AppConstants.positionTimeout,
+        ),
       );
     } catch (e) {
       return null;

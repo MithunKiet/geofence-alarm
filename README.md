@@ -5,7 +5,7 @@ A production-ready Flutter Android application that triggers an alarm when the u
 ## Features
 
 - 📍 **Map Location Picker** — tap the map to set alarm location with visual radius circle
-- 🔔 **Alarm Monitoring** — continuous geofence monitoring using `geofence_service`
+- 🔔 **Alarm Monitoring** — geofence monitoring in a foreground service (`flutter_foreground_task` + `geolocator`) that keeps running after the app is closed
 - 🔊 **Alarm Sound** — plays the system alarm ringtone via `flutter_ringtone_player`
 - 📳 **Notifications** — system notifications via `flutter_local_notifications`
 - 💾 **Local Storage** — alarms stored in SQLite via `sqflite`
@@ -135,7 +135,7 @@ CREATE TABLE alarms (
 |---|---|---|
 | `google_maps_flutter` | ^2.5.0 | Google Maps widget |
 | `geolocator` | ^14.0.2 | GPS location access |
-| `geofence_service` | ^6.0.0 | Geofence monitoring |
+| `flutter_foreground_task` | ^9.2.2 | Foreground service for background geofence monitoring |
 | `flutter_local_notifications` | ^21.0.0 | System notifications |
 | `flutter_ringtone_player` | ^4.0.0+4 | Play the alarm sound |
 | `sqflite` | ^2.3.0 | Local SQLite database |
@@ -143,9 +143,12 @@ CREATE TABLE alarms (
 | `provider` | ^6.1.1 | State management |
 | `permission_handler` | ^12.0.1 | Runtime permissions |
 
-> **Note:** `geofence_service` is marked discontinued upstream. It still works, but
-> has no guaranteed fixes for future Android versions — consider migrating to an
-> actively maintained alternative (e.g. `geofencing_api`) if this becomes an issue.
+> **Note:** the previously used `geofence_service` package (discontinued upstream)
+> has been removed. Geofence checks now run inside a `flutter_foreground_task`
+> foreground service using `geolocator` position streams and a Haversine
+> distance check, so monitoring survives the app being backgrounded or removed
+> from recents. Android does not allow any app to keep running after an
+> explicit **Force Stop**.
 
 ## Security Notes
 
