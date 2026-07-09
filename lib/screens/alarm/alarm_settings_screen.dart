@@ -60,6 +60,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
       },
     );
 
+    if (!mounted) return;
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _latitude = result['latitude'] as double;

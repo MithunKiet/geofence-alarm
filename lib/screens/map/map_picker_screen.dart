@@ -96,6 +96,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Future<void> _goToCurrentLocation() async {
     setState(() => _isLoadingLocation = true);
     final position = await LocationService.instance.getCurrentLocation();
+    if (!mounted) return;
     setState(() => _isLoadingLocation = false);
 
     if (position != null && _mapController != null) {
