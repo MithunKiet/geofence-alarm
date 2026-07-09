@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import '../config/constants.dart';
 import '../models/alarm_model.dart';
-import '../database/database_helper.dart';
 import 'notification_service.dart';
 
 typedef AlarmTriggerCallback = void Function(AlarmModel alarm);
@@ -29,22 +28,6 @@ class AlarmService {
 
   void setAlarmTriggerCallback(AlarmTriggerCallback callback) {
     _onAlarmTriggered = callback;
-  }
-
-  /// Called by the geofence service when a geofence boundary is crossed.
-  /// Looks up the alarm from the database and starts it.
-  Future<void> triggerFromGeofence(int alarmId) async {
-    // Avoid duplicate trigger if alarm is already playing for same alarm
-    if (_isAlarmPlaying && _currentAlarm?.id == alarmId) return;
-
-    try {
-      final alarm = await DatabaseHelper.instance.getAlarmById(alarmId);
-      if (alarm != null && alarm.isActive) {
-        await startAlarm(alarm);
-      }
-    } catch (e) {
-      debugPrint('[AlarmService] Error fetching alarm $alarmId: $e');
-    }
   }
 
   Future<void> startAlarm(AlarmModel alarm) async {
@@ -107,6 +90,28 @@ class AlarmService {
       const Duration(minutes: AppConstants.snoozeDurationMinutes),
       () => startAlarm(alarm),
     );
+  }
+
+  /// Mirrors, into this (UI) isolate, an alarm that is actually playing in
+  /// the foreground-service isolate. No sound is started here - this only
+  /// updates state so the ring screen can show and count down correctly,
+  /// and fires the navigation callback.
+  void syncTriggeredFromBackground(AlarmModel alarm, DateTime startedAt) {
+    if (_alarmStartedAt == startedAt) return;
+    _isAlarmPlaying = true;
+    _currentAlarm = alarm;
+    _alarmStartedAt = startedAt;
+    _onAlarmTriggered?.call(alarm);
+  }
+
+  /// Clears the mirrored state when the foreground-service isolate reports
+  /// the alarm has stopped (user action there, auto-stop, or snooze).
+  void syncStoppedFromBackground() {
+    _autoStopTimer?.cancel();
+    _autoStopTimer = null;
+    _isAlarmPlaying = false;
+    _currentAlarm = null;
+    _alarmStartedAt = null;
   }
 
   Future<void> dispose() async {

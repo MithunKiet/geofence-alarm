@@ -44,6 +44,19 @@ class AppConstants {
       'Notifications for geofence-triggered alarms';
   static const int alarmNotificationId = 1001;
 
+  // Geofence foreground service (flutter_foreground_task)
+  static const String geofenceChannelId = 'geo_fence_channel';
+  static const String geofenceChannelName = 'Geofence Monitoring';
+  static const String geofenceChannelDescription =
+      'Persistent notification shown while GeoAlarm watches your zones';
+  static const int geofenceServiceId = 256;
+
+  // Background monitoring behavior
+  static const int monitorDistanceFilterMeters = 10;
+  static const int monitorWatchdogIntervalMs = 60000;
+  static const Duration positionStaleAfter = Duration(minutes: 3);
+  static const Duration positionTimeout = Duration(seconds: 30);
+
   // Map defaults
   static const double defaultMapZoom = 15.0;
   static const double defaultLatitude = 37.7749;

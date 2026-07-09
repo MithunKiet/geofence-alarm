@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/alarm_model.dart';
 import '../../services/alarm_service.dart';
+import '../../services/geofence_service.dart';
 import '../../config/constants.dart';
 
 class AlarmRingScreen extends StatefulWidget {
@@ -84,13 +85,26 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   Future<void> _stopAndPop() async {
     _countdownTimer?.cancel();
+    // When the alarm was geofence-triggered, the sound plays in the
+    // foreground service isolate - stop it there. The local call clears
+    // this isolate's mirror state (and any locally-started sound).
+    await AppGeofenceService.instance.stopBackgroundAlarm();
     await AlarmService.instance.stopAlarm();
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _snooze() async {
     _countdownTimer?.cancel();
-    await AlarmService.instance.snoozeAlarm(widget.alarm);
+    // Prefer snoozing in the service isolate: its timer keeps running even
+    // if the app is closed before the snooze elapses. Fall back to a local
+    // snooze only when the service isn't running (manually opened screen).
+    final handledInBackground =
+        await AppGeofenceService.instance.snoozeBackgroundAlarm();
+    if (handledInBackground) {
+      await AlarmService.instance.stopAlarm();
+    } else {
+      await AlarmService.instance.snoozeAlarm(widget.alarm);
+    }
     if (mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
