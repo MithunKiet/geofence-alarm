@@ -60,6 +60,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
       },
     );
 
+    if (!mounted) return;
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _latitude = result['latitude'] as double;
@@ -84,7 +85,10 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
     final locationError = Validators.validateLocation(_latitude, _longitude);
     if (locationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(locationError), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(locationError),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
       );
       return;
     }
@@ -124,7 +128,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(provider.error ?? 'Failed to save alarm'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -142,13 +146,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // Title field
-            Text(
-              'Alarm Name',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
+            const _SectionLabel(icon: Icons.label_outline, label: 'Alarm Name'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _titleController,
@@ -163,13 +161,8 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
             const SizedBox(height: 24),
 
             // Location section
-            Text(
-              'Location',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
+            const _SectionLabel(
+                icon: Icons.location_on_outlined, label: 'Location'),
             const SizedBox(height: 8),
             if (_latitude != null && _longitude != null) ...[
               ClipRRect(
@@ -194,8 +187,9 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
                         circleId: const CircleId('preview_radius'),
                         center: LatLng(_latitude!, _longitude!),
                         radius: _radius,
-                        fillColor: Colors.indigo.withAlpha(51),
-                        strokeColor: Colors.indigo,
+                        fillColor:
+                            Theme.of(context).colorScheme.primary.withAlpha(51),
+                        strokeColor: Theme.of(context).colorScheme.primary,
                         strokeWidth: 2,
                       ),
                     },
@@ -212,8 +206,9 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
               Text(
                 '📍 ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}  '
                 '· Radius: ${DistanceUtils.formatRadius(_radius)}',
-                style:
-                    Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -249,6 +244,31 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _SectionLabel({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: colorScheme.primary),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }
