@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -20,6 +21,11 @@ void startGeofenceTask() {
   FlutterForegroundTask.setTaskHandler(GeofenceTaskHandler());
 }
 
+/// How aggressively we sample location, based on distance to the nearest
+/// geofence edge. Far from every fence, GPS stays off entirely and we only
+/// take an occasional low-power fix - the main battery saver.
+enum _MonitorTier { close, near, far }
+
 /// Runs geofence monitoring inside the foreground service's own isolate.
 ///
 /// This is what makes alarms work after the app is backgrounded or removed
@@ -34,7 +40,9 @@ class GeofenceTaskHandler extends TaskHandler {
   /// the outside -> inside transition (ENTER), and re-arms once we exit.
   final Set<int> _insideAlarmIds = {};
 
+  _MonitorTier? _tier;
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _farCheckTimer;
   DateTime? _lastPositionAt;
   Timer? _snoozeTimer;
 
@@ -42,17 +50,20 @@ class GeofenceTaskHandler extends TaskHandler {
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     await NotificationService.instance.initialize();
     await _reloadAlarms();
-    _subscribeToPosition();
+    await _checkNow();
   }
 
-  /// Watchdog only: real work is driven by the position stream. If the
-  /// stream has gone quiet (provider hiccup, doze), resubscribe.
+  /// Watchdog only: normal operation is driven by the position stream or
+  /// the far-tier timer. If neither has produced/scheduled anything for a
+  /// while (provider hiccup, doze), take a fresh fix and re-plan.
   @override
   void onRepeatEvent(DateTime timestamp) {
+    if (_activeAlarms.isEmpty) return;
+    if (_tier == _MonitorTier.far && _farCheckTimer != null) return;
     final last = _lastPositionAt;
     if (last == null ||
         DateTime.now().difference(last) > AppConstants.positionStaleAfter) {
-      _subscribeToPosition();
+      _checkNow();
     }
   }
 
@@ -60,6 +71,8 @@ class GeofenceTaskHandler extends TaskHandler {
   Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
     await _positionSubscription?.cancel();
     _positionSubscription = null;
+    _farCheckTimer?.cancel();
+    _farCheckTimer = null;
     _snoozeTimer?.cancel();
     _snoozeTimer = null;
     await AlarmService.instance.dispose();
@@ -77,7 +90,7 @@ class GeofenceTaskHandler extends TaskHandler {
 
     switch (message['command']) {
       case 'reloadAlarms':
-        _reloadAlarms();
+        _reloadAlarmsAndReplan();
       case 'stopAlarm':
         _snoozeTimer?.cancel();
         _stopAndNotifyMain();
@@ -99,33 +112,63 @@ class GeofenceTaskHandler extends TaskHandler {
     }
   }
 
-  void _subscribeToPosition() {
-    _positionSubscription?.cancel();
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: AppConstants.monitorDistanceFilterMeters,
-      ),
-    ).listen(_onPosition, onError: (Object e) {
-      debugPrint('[GeofenceTask] Position stream error: $e');
-    });
+  Future<void> _reloadAlarmsAndReplan() async {
+    await _reloadAlarms();
+    // Fence set changed, so the sampling tier may no longer be right
+    // (e.g. a new alarm was added right next to the user).
+    await _checkNow();
+  }
+
+  /// Takes a single low-power fix, runs the geofence checks with it, and
+  /// re-plans the sampling tier from scratch. Used at startup, on far-tier
+  /// timer ticks, after alarm-list changes, and by the watchdog. Clearing
+  /// _tier forces _applyTierFor to rebuild the stream, so a silently-dead
+  /// stream can't survive a watchdog pass.
+  Future<void> _checkNow() async {
+    _cancelAllSampling();
+    _tier = null;
+    if (_activeAlarms.isEmpty) return;
+
+    try {
+      // High accuracy even for the occasional far-tier fix: a coarse
+      // (~100m error) fix taken near a fence edge could false-trigger an
+      // ENTER, and one precise fix every few minutes is still cheap.
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: AppConstants.positionTimeout,
+        ),
+      );
+      _onPosition(position);
+    } catch (e) {
+      debugPrint('[GeofenceTask] One-shot fix failed: $e');
+      // Don't stall monitoring on a failed fix - try again shortly.
+      _farCheckTimer = Timer(AppConstants.farCheckMinInterval, _checkNow);
+    }
   }
 
   void _onPosition(Position position) {
     _lastPositionAt = DateTime.now();
+    if (_activeAlarms.isEmpty) {
+      _cancelAllSampling();
+      return;
+    }
+
+    double nearestEdgeMeters = double.infinity;
 
     for (final alarm in _activeAlarms) {
       final id = alarm.id;
       if (id == null) continue;
 
-      final inside = DistanceUtils.isWithinRadius(
+      final distance = DistanceUtils.calculateDistance(
         alarm.latitude,
         alarm.longitude,
         position.latitude,
         position.longitude,
-        alarm.radius,
       );
+      nearestEdgeMeters = min(nearestEdgeMeters, distance - alarm.radius);
 
+      final inside = distance <= alarm.radius;
       if (inside && !_insideAlarmIds.contains(id)) {
         _insideAlarmIds.add(id);
         _triggerAlarm(alarm);
@@ -133,6 +176,66 @@ class GeofenceTaskHandler extends TaskHandler {
         _insideAlarmIds.remove(id);
       }
     }
+
+    _applyTierFor(nearestEdgeMeters);
+  }
+
+  /// Picks the sampling strategy for the current distance to the nearest
+  /// fence edge and switches to it if it differs from the active one. The
+  /// far tier is re-armed on every position because its interval depends
+  /// on the (changing) distance.
+  void _applyTierFor(double nearestEdgeMeters) {
+    final _MonitorTier tier;
+    if (nearestEdgeMeters <= AppConstants.closeTierEdgeMeters) {
+      tier = _MonitorTier.close;
+    } else if (nearestEdgeMeters <= AppConstants.farTierEdgeMeters) {
+      tier = _MonitorTier.near;
+    } else {
+      tier = _MonitorTier.far;
+    }
+
+    if (tier == _MonitorTier.far) {
+      _cancelAllSampling();
+      _tier = tier;
+      // Even at ~100 km/h the user cannot reach the fence before the next
+      // check; when they are hundreds of km away this sleeps for the full
+      // 15-minute cap with the GPS completely off.
+      final seconds =
+          (nearestEdgeMeters / AppConstants.assumedMaxSpeedMps).round();
+      final interval = Duration(
+        seconds: seconds
+            .clamp(
+              AppConstants.farCheckMinInterval.inSeconds,
+              AppConstants.farCheckMaxInterval.inSeconds,
+            )
+            .toInt(),
+      );
+      _farCheckTimer = Timer(interval, _checkNow);
+      return;
+    }
+
+    if (tier == _tier) return;
+    _cancelAllSampling();
+    _tier = tier;
+
+    final close = tier == _MonitorTier.close;
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: close ? LocationAccuracy.high : LocationAccuracy.medium,
+        distanceFilter: close
+            ? AppConstants.closeDistanceFilterMeters
+            : AppConstants.nearDistanceFilterMeters,
+      ),
+    ).listen(_onPosition, onError: (Object e) {
+      debugPrint('[GeofenceTask] Position stream error: $e');
+    });
+  }
+
+  void _cancelAllSampling() {
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
+    _farCheckTimer?.cancel();
+    _farCheckTimer = null;
   }
 
   Future<void> _triggerAlarm(AlarmModel alarm) async {
