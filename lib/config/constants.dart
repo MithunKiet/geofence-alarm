@@ -51,8 +51,19 @@ class AppConstants {
       'Persistent notification shown while GeoAlarm watches your zones';
   static const int geofenceServiceId = 256;
 
-  // Background monitoring behavior
-  static const int monitorDistanceFilterMeters = 10;
+  // Background monitoring behavior. Monitoring is adaptive: the further the
+  // user is from the nearest geofence edge, the less GPS is used.
+  // - close (edge <= closeTierEdgeMeters): continuous high-accuracy stream
+  // - near (edge <= farTierEdgeMeters): continuous balanced-power stream
+  // - far (edge > farTierEdgeMeters): GPS off; one-shot low-power checks on
+  //   a timer sized by distance / assumedMaxSpeedMps
+  static const double closeTierEdgeMeters = 200;
+  static const double farTierEdgeMeters = 2000;
+  static const double assumedMaxSpeedMps = 28; // ~100 km/h
+  static const Duration farCheckMinInterval = Duration(seconds: 30);
+  static const Duration farCheckMaxInterval = Duration(minutes: 15);
+  static const int closeDistanceFilterMeters = 10;
+  static const int nearDistanceFilterMeters = 50;
   static const int monitorWatchdogIntervalMs = 60000;
   static const Duration positionStaleAfter = Duration(minutes: 3);
   static const Duration positionTimeout = Duration(seconds: 30);
