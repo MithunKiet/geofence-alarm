@@ -27,7 +27,7 @@ class AppConstants {
 
   // Database
   static const String dbName = 'geo_alarm.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 2;
   static const String tableName = 'alarms';
   static const String colId = 'id';
   static const String colTitle = 'title';
@@ -36,6 +36,7 @@ class AppConstants {
   static const String colRadius = 'radius';
   static const String colIsActive = 'is_active';
   static const String colCreatedAt = 'created_at';
+  static const String colIsOneTime = 'is_one_time';
 
   // Notification channels
   static const String alarmChannelId = 'geo_alarm_channel';

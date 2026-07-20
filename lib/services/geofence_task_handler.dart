@@ -49,8 +49,20 @@ class GeofenceTaskHandler extends TaskHandler {
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     await NotificationService.instance.initialize();
+    AlarmService.instance.setOnAlarmStoppedCallback(_onAlarmStopped);
     await _reloadAlarms();
     await _checkNow();
+  }
+
+  /// Runs whenever AlarmService.stopAlarm() completes in this isolate, for
+  /// any reason (Stop pressed, 60s auto-stop timeout, or the stop() half of
+  /// a snooze cycle). Centralizing this here - rather than duplicating it at
+  /// every call site that can end an alarm - is what makes the auto-stop
+  /// timeout path also notify the UI and consider self-stopping the service,
+  /// which a naive per-call-site version would silently miss.
+  void _onAlarmStopped() {
+    _sendStatusToMain();
+    _stopServiceIfIdle();
   }
 
   /// Watchdog only: normal operation is driven by the position stream or
@@ -241,27 +253,75 @@ class GeofenceTaskHandler extends TaskHandler {
   Future<void> _triggerAlarm(AlarmModel alarm) async {
     await AlarmService.instance.startAlarm(alarm);
     _sendStatusToMain();
+
+    if (alarm.isOneTime) {
+      await _deactivateOneTimeAlarm(alarm);
+    }
+  }
+
+  /// A one-time alarm has done its job the moment it rings: turn it off in
+  /// the database and drop it from the in-memory monitoring set so it can't
+  /// fire again on a later ENTER. This does NOT stop the service itself -
+  /// the alarm may still be ringing or about to be snoozed, both of which
+  /// need this isolate alive; _stopServiceIfIdle() (called once the alarm
+  /// actually stops) is what decides whether the service can shut down.
+  Future<void> _deactivateOneTimeAlarm(AlarmModel alarm) async {
+    final id = alarm.id;
+    try {
+      await DatabaseHelper.instance
+          .updateAlarm(alarm.copyWith(isActive: false));
+    } catch (e) {
+      debugPrint('[GeofenceTask] Failed to deactivate one-time alarm: $e');
+    }
+    if (id != null) {
+      _activeAlarms = _activeAlarms.where((a) => a.id != id).toList();
+      _insideAlarmIds.remove(id);
+    }
+    FlutterForegroundTask.sendDataToMain(
+      jsonEncode({'event': 'alarmDeactivated', 'alarmId': id}),
+    );
   }
 
   Future<void> _stopAndNotifyMain() async {
+    // AlarmService's onAlarmStopped callback (_onAlarmStopped) handles both
+    // notifying the UI and the self-stop check once this completes.
     await AlarmService.instance.stopAlarm();
-    _sendStatusToMain();
   }
 
   Future<void> _snoozeCurrentAlarm() async {
     final alarm = AlarmService.instance.currentAlarm;
     if (alarm == null) return;
 
-    await AlarmService.instance.stopAlarm();
-    _sendStatusToMain();
-
-    // The snooze timer lives in this isolate, so unlike the pre-refactor
-    // implementation it keeps counting down after the app is closed.
+    // Arm the snooze timer *before* stopping. stopAlarm() synchronously
+    // triggers _onAlarmStopped -> _stopServiceIfIdle(), which checks for a
+    // pending snooze timer; arming it first means that check sees it and
+    // doesn't tear the service down out from under the pending snooze.
     _snoozeTimer?.cancel();
     _snoozeTimer = Timer(
       const Duration(minutes: AppConstants.snoozeDurationMinutes),
       () => _triggerAlarm(alarm),
     );
+
+    // The snooze timer lives in this isolate, so unlike the pre-refactor
+    // implementation it keeps counting down after the app is closed.
+    await AlarmService.instance.stopAlarm();
+  }
+
+  /// Stops the foreground service once there is nothing left for it to do:
+  /// no active alarms to monitor and no snooze timer waiting to re-ring one.
+  /// Safe to call redundantly (e.g. also reachable from onDestroy's own
+  /// teardown path) - it no-ops if the service isn't running.
+  Future<void> _stopServiceIfIdle() async {
+    final snoozePending = _snoozeTimer?.isActive ?? false;
+    if (_activeAlarms.isNotEmpty || snoozePending) return;
+    if (!await FlutterForegroundTask.isRunningService) return;
+
+    _cancelAllSampling();
+    try {
+      await FlutterForegroundTask.stopService();
+    } catch (e) {
+      debugPrint('[GeofenceTask] Failed to self-stop idle service: $e');
+    }
   }
 
   /// Pushes the current playing state to the UI isolate (a no-op if the UI

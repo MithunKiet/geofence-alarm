@@ -26,6 +26,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
   double? _latitude;
   double? _longitude;
   double _radius = AppConstants.defaultRadius;
+  bool _isOneTime = false;
   bool _isSaving = false;
   GoogleMapController? _previewMapController;
 
@@ -40,6 +41,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
       _latitude = alarm.latitude;
       _longitude = alarm.longitude;
       _radius = alarm.radius;
+      _isOneTime = alarm.isOneTime;
     }
   }
 
@@ -104,6 +106,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
         latitude: _latitude,
         longitude: _longitude,
         radius: _radius,
+        isOneTime: _isOneTime,
       );
       success = await provider.updateAlarm(updated);
     } else {
@@ -114,6 +117,7 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
         radius: _radius,
         isActive: true,
         createdAt: DateTime.now(),
+        isOneTime: _isOneTime,
       );
       final result = await provider.addAlarm(newAlarm);
       success = result != null;
@@ -231,6 +235,15 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
               selectedRadius: _radius,
               onChanged: (r) => setState(() => _radius = r),
             ),
+            const SizedBox(height: 24),
+
+            // Repeat mode section
+            const _SectionLabel(icon: Icons.repeat, label: 'When it fires'),
+            const SizedBox(height: 8),
+            _RepeatModeSelector(
+              isOneTime: _isOneTime,
+              onChanged: (value) => setState(() => _isOneTime = value),
+            ),
             const SizedBox(height: 32),
 
             // Save button
@@ -244,6 +257,54 @@ class _AlarmSettingsScreenState extends State<AlarmSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RepeatModeSelector extends StatelessWidget {
+  final bool isOneTime;
+  final ValueChanged<bool> onChanged;
+
+  const _RepeatModeSelector({
+    required this.isOneTime,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(
+              value: false,
+              label: Text('Repeats'),
+              icon: Icon(Icons.repeat, size: 18),
+            ),
+            ButtonSegment(
+              value: true,
+              label: Text('One-time trip'),
+              icon: Icon(Icons.flight_takeoff, size: 18),
+            ),
+          ],
+          selected: {isOneTime},
+          onSelectionChanged: (selection) => onChanged(selection.first),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          isOneTime
+              ? 'Turns itself off after it rings once, and monitoring stops '
+                  'if this was the last active alarm - saves battery on trips '
+                  'you take occasionally.'
+              : 'Stays armed and can ring again every time you enter this '
+                  'zone - good for places you visit regularly.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ],
     );
   }
 }

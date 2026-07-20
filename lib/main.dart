@@ -65,9 +65,11 @@ class _GeoAlarmAppState extends State<GeoAlarmApp> with WidgetsBindingObserver {
     }
   }
 
-  /// Handles status messages from the foreground service isolate, keeping
+  /// Handles messages from the foreground service isolate: 'status' keeps
   /// this isolate's AlarmService mirror (and therefore the ring screen) in
-  /// sync with what is actually playing.
+  /// sync with what is actually playing; 'alarmDeactivated' means a
+  /// one-time alarm turned itself off after firing, so the alarm list needs
+  /// reloading for its Home screen switch to reflect that.
   Future<void> _onServiceData(Object data) async {
     if (data is! String) return;
     Map<String, dynamic> message;
@@ -76,21 +78,28 @@ class _GeoAlarmAppState extends State<GeoAlarmApp> with WidgetsBindingObserver {
     } catch (_) {
       return;
     }
-    if (message['event'] != 'status') return;
 
-    final playing = message['playing'] == true;
-    final alarmId = message['alarmId'] as int?;
-    final startedAtRaw = message['startedAt'] as String?;
+    switch (message['event']) {
+      case 'alarmDeactivated':
+        final ctx = _navigatorKey.currentContext;
+        if (ctx != null) {
+          await ctx.read<AlarmProvider>().loadAlarms();
+        }
+      case 'status':
+        final playing = message['playing'] == true;
+        final alarmId = message['alarmId'] as int?;
+        final startedAtRaw = message['startedAt'] as String?;
 
-    if (!playing || alarmId == null || startedAtRaw == null) {
-      AlarmService.instance.syncStoppedFromBackground();
-      return;
+        if (!playing || alarmId == null || startedAtRaw == null) {
+          AlarmService.instance.syncStoppedFromBackground();
+          return;
+        }
+
+        final alarm = await DatabaseHelper.instance.getAlarmById(alarmId);
+        if (alarm == null) return;
+        AlarmService.instance.syncTriggeredFromBackground(
+            alarm, DateTime.parse(startedAtRaw));
     }
-
-    final alarm = await DatabaseHelper.instance.getAlarmById(alarmId);
-    if (alarm == null) return;
-    AlarmService.instance
-        .syncTriggeredFromBackground(alarm, DateTime.parse(startedAtRaw));
   }
 
   @override
