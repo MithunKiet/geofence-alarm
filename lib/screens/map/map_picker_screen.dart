@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../config/constants.dart';
 import '../../services/location_service.dart';
@@ -32,6 +33,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   bool _isMapReady = false;
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -118,6 +123,50 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to get current location')),
       );
+    }
+  }
+
+  /// Looks up a typed place name/address (e.g. "Andheri Station") and jumps
+  /// the map there. Uses the device's built-in geocoder (geocoding
+  /// package), which needs no separate Places API key or setup - only the
+  /// Maps API key (for rendering the map itself) is required anywhere in
+  /// this app.
+  Future<void> _searchLocation() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    _searchFocusNode.unfocus();
+    setState(() => _isSearching = true);
+
+    List<geocoding.Location> results = [];
+    try {
+      results = await geocoding.locationFromAddress(query);
+    } catch (e) {
+      debugPrint('[MapPickerScreen] Geocoding failed: $e');
+    }
+
+    if (!mounted) return;
+    setState(() => _isSearching = false);
+
+    if (results.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No results found for "$query"')),
+      );
+      return;
+    }
+
+    final target = LatLng(results.first.latitude, results.first.longitude);
+    setState(() {
+      _selectedLocation = target;
+      _updateOverlays();
+    });
+
+    if (_mapController != null) {
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(target, AppConstants.defaultMapZoom),
+      );
+    } else {
+      _pendingCameraTarget = target;
     }
   }
 
@@ -244,6 +293,54 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     child: const Center(child: CircularProgressIndicator()),
                   ),
                 Positioned(
+                  left: 12,
+                  right: 12,
+                  top: 12,
+                  child: Material(
+                    elevation: 3,
+                    borderRadius: BorderRadius.circular(28),
+                    color: colorScheme.surface,
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _searchLocation(),
+                      decoration: InputDecoration(
+                        hintText: 'Search a place (e.g. Andheri Station)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 14),
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _isSearching
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : (_searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                  )
+                                : null),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ),
+                Positioned(
                   right: 16,
                   bottom: 16,
                   child: FloatingActionButton.small(
@@ -332,6 +429,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _mapController?.dispose();
     super.dispose();
   }
