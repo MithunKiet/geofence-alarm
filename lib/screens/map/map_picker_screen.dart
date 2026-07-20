@@ -140,7 +140,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
     List<geocoding.Location> results = [];
     try {
-      results = await geocoding.locationFromAddress(query);
+      results = await geocoding.Geocoding().locationFromAddress(query);
     } catch (e) {
       debugPrint('[MapPickerScreen] Geocoding failed: $e');
     }

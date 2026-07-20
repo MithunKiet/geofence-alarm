@@ -71,10 +71,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               await context.read<AlarmProvider>().loadAlarms();
               await _refreshGeofences();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Alarms refreshed')),
                 );
               }
