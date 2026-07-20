@@ -42,6 +42,13 @@ class NotificationService {
       enableVibration: true,
       fullScreenIntent: true,
       category: AndroidNotificationCategory.alarm,
+      // Tags this channel as alarm audio and asks the system to let it
+      // through Do Not Disturb. channelBypassDnd only takes effect if the
+      // user has granted notification-policy access (see
+      // requestDndBypassAccess below) - without it, Android silently
+      // treats this as false rather than failing.
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      channelBypassDnd: true,
     );
 
     const notificationDetails = NotificationDetails(android: androidDetails);
@@ -70,5 +77,20 @@ class NotificationService {
       return granted ?? false;
     }
     return true;
+  }
+
+  /// Opens the system "Do Not Disturb access" settings screen so the user
+  /// can whitelist GeoAlarm. There is no runtime permission dialog for this
+  /// on Android - it's a manual settings toggle - so this should only be
+  /// called after explaining why to the user (see PermissionUtils). Without
+  /// it, channelBypassDnd on the alarm channel is silently ignored and the
+  /// alarm notification (though not the alarm sound itself, which already
+  /// plays on the alarm audio stream regardless) can be suppressed by DND.
+  Future<bool> requestDndBypassAccess() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+    final granted = await android.requestNotificationPolicyAccess();
+    return granted ?? false;
   }
 }

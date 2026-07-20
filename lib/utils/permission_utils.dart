@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../services/notification_service.dart';
 
 class PermissionUtils {
   PermissionUtils._();
@@ -68,6 +69,42 @@ class PermissionUtils {
       return false;
     }
     return status.isGranted;
+  }
+
+  /// Do Not Disturb access has no runtime permission dialog on Android -
+  /// it's a manual toggle in system Settings - so this shows a rationale
+  /// dialog first, then opens that settings screen if the user agrees.
+  /// The alarm sound itself already plays on the alarm audio stream
+  /// (bypassing Silent/Vibrate mode regardless), so declining this only
+  /// means the notification/UI can still be suppressed by DND, not silence
+  /// the alarm sound.
+  static Future<void> requestDndBypassAccess(BuildContext context) async {
+    final shouldRequest = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ring Through Do Not Disturb'),
+        content: const Text(
+          'Grant Do Not Disturb access so your alarm notification and '
+          'full-screen alert still show up even when your phone is in DND '
+          'mode. The alarm sound already plays regardless - this only '
+          'covers the visual alert.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Not Now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Grant Access'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRequest == true) {
+      await NotificationService.instance.requestDndBypassAccess();
+    }
   }
 
   static Future<void> showPermissionDeniedDialog(
