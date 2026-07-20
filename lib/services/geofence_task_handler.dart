@@ -44,6 +44,7 @@ class GeofenceTaskHandler extends TaskHandler {
   StreamSubscription<Position>? _positionSubscription;
   Timer? _farCheckTimer;
   DateTime? _lastPositionAt;
+  DateTime? _lastNotificationUpdateAt;
   Timer? _snoozeTimer;
 
   @override
@@ -139,6 +140,10 @@ class GeofenceTaskHandler extends TaskHandler {
   Future<void> _checkNow() async {
     _cancelAllSampling();
     _tier = null;
+    // Force the next position fix to refresh the notification immediately
+    // rather than waiting out the throttle window with possibly-stale text
+    // (e.g. after the alarm list changed).
+    _lastNotificationUpdateAt = null;
     if (_activeAlarms.isEmpty) return;
 
     try {
@@ -167,6 +172,7 @@ class GeofenceTaskHandler extends TaskHandler {
     }
 
     double nearestEdgeMeters = double.infinity;
+    AlarmModel? nearestAlarm;
 
     for (final alarm in _activeAlarms) {
       final id = alarm.id;
@@ -178,7 +184,11 @@ class GeofenceTaskHandler extends TaskHandler {
         position.latitude,
         position.longitude,
       );
-      nearestEdgeMeters = min(nearestEdgeMeters, distance - alarm.radius);
+      final edge = distance - alarm.radius;
+      if (edge < nearestEdgeMeters) {
+        nearestEdgeMeters = edge;
+        nearestAlarm = alarm;
+      }
 
       final inside = distance <= alarm.radius;
       if (inside && !_insideAlarmIds.contains(id)) {
@@ -190,6 +200,32 @@ class GeofenceTaskHandler extends TaskHandler {
     }
 
     _applyTierFor(nearestEdgeMeters);
+    _updateLiveDistanceNotification(nearestAlarm, nearestEdgeMeters);
+  }
+
+  /// Keeps the persistent foreground notification showing live distance to
+  /// the nearest active zone (e.g. "Home - 3.2 km away") instead of a
+  /// static "Watching N zones", so the user can glance at it while
+  /// traveling without opening the app. Throttled since the close tier's
+  /// position stream can fire much faster than this needs to update, and
+  /// skipped while an alarm is actively ringing so it doesn't compete with
+  /// that notification's own message.
+  void _updateLiveDistanceNotification(AlarmModel? alarm, double edgeMeters) {
+    if (alarm == null || AlarmService.instance.isAlarmPlaying) return;
+
+    final now = DateTime.now();
+    final last = _lastNotificationUpdateAt;
+    if (last != null &&
+        now.difference(last) < AppConstants.liveNotificationUpdateInterval) {
+      return;
+    }
+    _lastNotificationUpdateAt = now;
+
+    final text = edgeMeters <= 0
+        ? '${alarm.title} - you are in the zone'
+        : '${alarm.title} - ${DistanceUtils.formatDistance(edgeMeters)} away';
+
+    FlutterForegroundTask.updateService(notificationText: text);
   }
 
   /// Picks the sampling strategy for the current distance to the nearest
