@@ -69,6 +69,11 @@ class AppConstants {
   static const Duration positionStaleAfter = Duration(minutes: 3);
   static const Duration positionTimeout = Duration(seconds: 30);
 
+  // Minimum gap between live distance-to-zone notification text updates,
+  // so a fast stream of position fixes (close tier) doesn't spam the OS
+  // with notification updates.
+  static const Duration liveNotificationUpdateInterval = Duration(seconds: 15);
+
   // Map defaults
   static const double defaultMapZoom = 15.0;
   static const double defaultLatitude = 37.7749;
