@@ -17,6 +17,7 @@ class AlarmService {
   AlarmModel? _currentAlarm;
   DateTime? _alarmStartedAt;
   AlarmTriggerCallback? _onAlarmTriggered;
+  VoidCallback? _onAlarmStopped;
 
   bool get isAlarmPlaying => _isAlarmPlaying;
   AlarmModel? get currentAlarm => _currentAlarm;
@@ -28,6 +29,15 @@ class AlarmService {
 
   void setAlarmTriggerCallback(AlarmTriggerCallback callback) {
     _onAlarmTriggered = callback;
+  }
+
+  /// Fired at the end of every stopAlarm() - manual stop, auto-stop timeout,
+  /// or the stop() half of a snooze cycle - regardless of what triggered it.
+  /// The foreground-service isolate uses this single hook to both notify the
+  /// UI isolate and decide whether it can shut itself down, instead of
+  /// duplicating that logic at every call site that can end an alarm.
+  void setOnAlarmStoppedCallback(VoidCallback? callback) {
+    _onAlarmStopped = callback;
   }
 
   Future<void> startAlarm(AlarmModel alarm) async {
@@ -82,6 +92,7 @@ class AlarmService {
     _isAlarmPlaying = false;
     _currentAlarm = null;
     _alarmStartedAt = null;
+    _onAlarmStopped?.call();
   }
 
   Future<void> snoozeAlarm(AlarmModel alarm) async {
