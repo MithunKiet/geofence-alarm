@@ -165,6 +165,8 @@ class GeofenceTaskHandler extends TaskHandler {
 
   void _onPosition(Position position) {
     _lastPositionAt = DateTime.now();
+    debugPrint('[GeofenceTask] Position: ${position.latitude}, '
+        '${position.longitude} (activeAlarms: ${_activeAlarms.length})');
     if (_activeAlarms.isEmpty) {
       _cancelAllSampling();
       return;
@@ -224,7 +226,16 @@ class GeofenceTaskHandler extends TaskHandler {
         ? '${alarm.title} - you are in the zone'
         : '${alarm.title} - ${DistanceUtils.formatDistance(edgeMeters)} away';
 
-    FlutterForegroundTask.updateService(notificationText: text);
+    debugPrint('[GeofenceTask] Updating notification: "$text"');
+    // Passing notificationTitle alongside notificationText defensively -
+    // some Android notification-update paths only apply cleanly when the
+    // full content is resent together rather than a text-only partial.
+    FlutterForegroundTask.updateService(
+      notificationTitle: AppConstants.appName,
+      notificationText: text,
+    ).then((result) {
+      debugPrint('[GeofenceTask] updateService result: $result');
+    });
   }
 
   /// Picks the sampling strategy for the current distance to the nearest
