@@ -9,6 +9,12 @@ class AlarmModel {
   final bool isActive;
   final DateTime createdAt;
 
+  /// If true, this alarm deactivates itself (isActive -> false) the moment
+  /// it fires, and monitoring stops entirely once no active alarms remain -
+  /// meant for a single trip, so background location isn't held after use.
+  /// If false (default), it stays armed and can fire again on re-entry.
+  final bool isOneTime;
+
   const AlarmModel({
     this.id,
     required this.title,
@@ -17,6 +23,7 @@ class AlarmModel {
     required this.radius,
     this.isActive = true,
     required this.createdAt,
+    this.isOneTime = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +35,7 @@ class AlarmModel {
       AppConstants.colRadius: radius,
       AppConstants.colIsActive: isActive ? 1 : 0,
       AppConstants.colCreatedAt: createdAt.toIso8601String(),
+      AppConstants.colIsOneTime: isOneTime ? 1 : 0,
     };
   }
 
@@ -40,6 +48,9 @@ class AlarmModel {
       radius: map[AppConstants.colRadius] as double,
       isActive: (map[AppConstants.colIsActive] as int) == 1,
       createdAt: DateTime.parse(map[AppConstants.colCreatedAt] as String),
+      // Column added in DB v2; rows migrated from v1 have no value for it,
+      // so default to false (repeat) to preserve their prior behavior.
+      isOneTime: (map[AppConstants.colIsOneTime] as int?) == 1,
     );
   }
 
@@ -51,6 +62,7 @@ class AlarmModel {
     double? radius,
     bool? isActive,
     DateTime? createdAt,
+    bool? isOneTime,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -60,13 +72,15 @@ class AlarmModel {
       radius: radius ?? this.radius,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      isOneTime: isOneTime ?? this.isOneTime,
     );
   }
 
   @override
   String toString() {
     return 'AlarmModel(id: $id, title: $title, lat: $latitude, lng: $longitude, '
-        'radius: $radius, isActive: $isActive, createdAt: $createdAt)';
+        'radius: $radius, isActive: $isActive, isOneTime: $isOneTime, '
+        'createdAt: $createdAt)';
   }
 
   @override
