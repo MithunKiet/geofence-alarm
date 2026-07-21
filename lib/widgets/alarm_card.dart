@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/alarm_model.dart';
 import '../providers/alarm_provider.dart';
+import '../services/geofence_service.dart' as app_geo;
 import '../utils/distance_utils.dart';
 import '../config/app_routes.dart';
 
@@ -30,9 +31,7 @@ class AlarmCard extends StatelessWidget {
         child: Icon(Icons.delete_outline, color: colorScheme.onErrorContainer),
       ),
       confirmDismiss: (_) => _confirmDelete(context),
-      onDismissed: (_) {
-        if (alarm.id != null) provider.deleteAlarm(alarm.id!);
-      },
+      onDismissed: (_) => _deleteAlarm(provider),
       child: Opacity(
         opacity: alarm.isActive ? 1 : 0.6,
         child: Card(
@@ -132,10 +131,18 @@ class AlarmCard extends StatelessWidget {
                             TextButton.icon(
                               icon: const Icon(Icons.edit_outlined, size: 16),
                               label: const Text('Edit'),
-                              onPressed: () => Navigator.of(context).pushNamed(
-                                AppRoutes.alarmSettings,
-                                arguments: alarm,
-                              ),
+                              onPressed: () async {
+                                // Edits (location/radius/etc.) need syncing
+                                // to the running service the same as toggle
+                                // and delete do - await the round trip
+                                // instead of firing the push and forgetting.
+                                await Navigator.of(context).pushNamed(
+                                  AppRoutes.alarmSettings,
+                                  arguments: alarm,
+                                );
+                                await app_geo.AppGeofenceService.instance
+                                    .refreshMonitoring(provider.activeAlarms);
+                              },
                             ),
                             const SizedBox(width: 4),
                             TextButton.icon(
@@ -145,9 +152,8 @@ class AlarmCard extends StatelessWidget {
                                   style: TextStyle(color: colorScheme.error)),
                               onPressed: () async {
                                 if (await _confirmDelete(context) == true &&
-                                    alarm.id != null &&
                                     context.mounted) {
-                                  await provider.deleteAlarm(alarm.id!);
+                                  await _deleteAlarm(provider);
                                 }
                               },
                             ),
@@ -165,13 +171,31 @@ class AlarmCard extends StatelessWidget {
     );
   }
 
+  /// Toggling and deleting alarms both need to sync the running foreground
+  /// service afterward (start/stop it, or update which zones it watches) -
+  /// without this, flipping an alarm on right before a trip (this app's
+  /// whole point) wouldn't actually start monitoring until something else
+  /// happened to trigger a refresh, like backgrounding and resuming the app.
   Future<void> _toggleAlarm(
       BuildContext context, AlarmProvider provider, bool value) async {
     final success = await provider.toggleAlarm(alarm.id!, value);
-    if (!success && context.mounted) {
+    if (success) {
+      await app_geo.AppGeofenceService.instance
+          .refreshMonitoring(provider.activeAlarms);
+    } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(provider.error ?? 'Failed to update alarm')),
       );
+    }
+  }
+
+  Future<void> _deleteAlarm(AlarmProvider provider) async {
+    final id = alarm.id;
+    if (id == null) return;
+    final success = await provider.deleteAlarm(id);
+    if (success) {
+      await app_geo.AppGeofenceService.instance
+          .refreshMonitoring(provider.activeAlarms);
     }
   }
 
