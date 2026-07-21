@@ -79,6 +79,17 @@ class NotificationService {
     return true;
   }
 
+  /// Whether Do Not Disturb access is already granted. Callers should check
+  /// this before showing any rationale/request UI, so a user who already
+  /// granted access isn't asked again on every app open.
+  Future<bool> hasDndBypassAccess() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+    final granted = await android.hasNotificationPolicyAccess();
+    return granted ?? false;
+  }
+
   /// Opens the system "Do Not Disturb access" settings screen so the user
   /// can whitelist GeoAlarm. There is no runtime permission dialog for this
   /// on Android - it's a manual settings toggle - so this should only be

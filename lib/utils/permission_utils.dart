@@ -78,7 +78,16 @@ class PermissionUtils {
   /// (bypassing Silent/Vibrate mode regardless), so declining this only
   /// means the notification/UI can still be suppressed by DND, not silence
   /// the alarm sound.
+  ///
+  /// Checks whether access is already granted first - without this check,
+  /// the rationale dialog would reappear on every single app launch even
+  /// after the user already granted it, since (unlike the other permissions
+  /// above) there's no OS-level "already granted" short-circuit for a
+  /// manual Settings toggle.
   static Future<void> requestDndBypassAccess(BuildContext context) async {
+    if (await NotificationService.instance.hasDndBypassAccess()) return;
+    if (!context.mounted) return;
+
     final shouldRequest = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
