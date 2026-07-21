@@ -48,6 +48,37 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       _setDefaultLocationToCurrentPosition();
     }
     _radius = widget.initialRadius ?? AppConstants.defaultRadius;
+    _warnIfGeocodingUnavailable();
+  }
+
+  /// Some OEM Android builds (notably several ColorOS/OPPO-Realme devices)
+  /// ship without a working geocoder backend, so search silently returns no
+  /// results no matter what's typed. isPresent() only catches the case
+  /// where the API is missing entirely - it can still return true on a
+  /// device whose backend just returns poor results - but it's worth
+  /// surfacing the clear cases upfront instead of only after a failed
+  /// search.
+  Future<void> _warnIfGeocodingUnavailable() async {
+    bool available;
+    try {
+      available = await geocoding.Geocoding().isPresent();
+    } catch (_) {
+      available = false;
+    }
+    if (available || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(seconds: 6),
+          content: Text(
+            "Address search isn't available on this device - tap the map "
+            'below to select a location instead.',
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -150,7 +181,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
     if (results.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No results found for "$query"')),
+        SnackBar(
+          duration: const Duration(seconds: 5),
+          content: Text(
+            'No results for "$query". Device search works best with a full '
+            'address (e.g. add city/area name) - or just tap the map below.',
+          ),
+        ),
       );
       return;
     }
@@ -306,7 +343,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) => _searchLocation(),
                       decoration: InputDecoration(
-                        hintText: 'Search a place (e.g. Andheri Station)',
+                        hintText: 'Search a full address (e.g. MG Road, Pune)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(28),
                           borderSide: BorderSide.none,
