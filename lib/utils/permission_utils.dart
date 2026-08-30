@@ -83,7 +83,9 @@ class PermissionUtils {
   /// the rationale dialog would reappear on every single app launch even
   /// after the user already granted it, since (unlike the other permissions
   /// above) there's no OS-level "already granted" short-circuit for a
-  /// manual Settings toggle.
+  /// manual Settings toggle. That check never throws - NotificationService
+  /// swallows its own platform-channel errors and reports "not granted" -
+  /// so a flaky check here can't abort the caller's startup permission chain.
   static Future<void> requestDndBypassAccess(BuildContext context) async {
     if (await NotificationService.instance.hasDndBypassAccess()) return;
     if (!context.mounted) return;

@@ -12,6 +12,10 @@ class NotificationService {
 
   bool _initialized = false;
 
+  AndroidFlutterLocalNotificationsPlugin? get _android =>
+      _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -70,8 +74,7 @@ class NotificationService {
   }
 
   Future<bool> requestPermission() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _android;
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
       return granted ?? false;
@@ -82,12 +85,21 @@ class NotificationService {
   /// Whether Do Not Disturb access is already granted. Callers should check
   /// this before showing any rationale/request UI, so a user who already
   /// granted access isn't asked again on every app open.
+  ///
+  /// Swallows platform-channel errors (e.g. an OEM build where the method
+  /// channel isn't fully attached yet) and reports "not granted" instead of
+  /// throwing, so a flaky check here can't abort the caller's whole startup
+  /// permission chain.
   Future<bool> hasDndBypassAccess() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _android;
     if (android == null) return true;
-    final granted = await android.hasNotificationPolicyAccess();
-    return granted ?? false;
+    try {
+      final granted = await android.hasNotificationPolicyAccess();
+      return granted ?? false;
+    } catch (e) {
+      debugPrint('[NotificationService] hasDndBypassAccess failed: $e');
+      return false;
+    }
   }
 
   /// Opens the system "Do Not Disturb access" settings screen so the user
@@ -97,11 +109,18 @@ class NotificationService {
   /// it, channelBypassDnd on the alarm channel is silently ignored and the
   /// alarm notification (though not the alarm sound itself, which already
   /// plays on the alarm audio stream regardless) can be suppressed by DND.
+  ///
+  /// Swallows platform-channel errors and reports failure instead of
+  /// throwing, for the same reason as hasDndBypassAccess above.
   Future<bool> requestDndBypassAccess() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _android;
     if (android == null) return true;
-    final granted = await android.requestNotificationPolicyAccess();
-    return granted ?? false;
+    try {
+      final granted = await android.requestNotificationPolicyAccess();
+      return granted ?? false;
+    } catch (e) {
+      debugPrint('[NotificationService] requestDndBypassAccess failed: $e');
+      return false;
+    }
   }
 }
